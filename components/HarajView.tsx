@@ -11,8 +11,7 @@ import { getDisplayLocation } from '../data/locations';
 import { 
   registerForPushNotifications, 
   getStoredToken,
-  requestPermissions,
-  unregisterFromPushNotifications
+  requestPermissions
 } from '../services/pushNotifications';
 
 interface HarajViewProps {
@@ -29,9 +28,12 @@ const HarajView: React.FC<HarajViewProps> = ({ onFullScreenToggle, currentLocati
   const [posts, setPosts] = useState<Post[]>([]);
   const [loading, setLoading] = useState(false);
   
-  // Notification toggle state - persisted in localStorage
+  // ============================================
+  // INDEPENDENT Notification State for Haraj
+  // ============================================
+  // Uses unique localStorage key 'notifications_haraj' to prevent conflicts
   const [harajNotificationsEnabled, setHarajNotificationsEnabled] = useState(() => 
-    localStorage.getItem('harajNotificationsEnabled') === 'true'
+    localStorage.getItem('notifications_haraj') === 'true'
   );
   const [toastMessage, setToastMessage] = useState<string | null>(null);
 
@@ -53,19 +55,19 @@ const HarajView: React.FC<HarajViewProps> = ({ onFullScreenToggle, currentLocati
     setPosts([]);
   };
 
-  // Bell Icon Toggle Handler - User-Initiated Notification Toggle for Haraj
+  // ============================================
+  // Haraj Topic Subscription Handler
+  // ============================================
   const handleToggleHarajNotifications = async () => {
     try {
       if (!harajNotificationsEnabled) {
         // Currently Disabled -> Enable notifications
-        // Step 1: Request permissions
         const permission = await requestPermissions();
         if (permission !== 'granted') {
           showToast(language === 'ar' ? 'يرجى السماح بالإشعارات من الإعدادات' : 'Please enable notifications in settings');
           return;
         }
         
-        // Step 2: Get FCM token
         let fcmToken = getStoredToken();
         const authToken = localStorage.getItem('token');
         
@@ -87,7 +89,7 @@ const HarajView: React.FC<HarajViewProps> = ({ onFullScreenToggle, currentLocati
           return;
         }
         
-        // Step 3: Subscribe to haraj topic
+        // Subscribe to 'haraj' topic ONLY
         const response = await fetch(`${API_BASE_URL}/api/v1/fcm/subscribe`, {
           method: 'POST',
           headers: {
@@ -96,15 +98,14 @@ const HarajView: React.FC<HarajViewProps> = ({ onFullScreenToggle, currentLocati
           },
           body: JSON.stringify({
             deviceToken: fcmToken,
-            topic: 'haraj',
-            subTopic: activeCategory || 'all'
+            topic: 'haraj'  // Only haraj topic
           })
         });
         
         if (response.ok) {
           setHarajNotificationsEnabled(true);
-          localStorage.setItem('harajNotificationsEnabled', 'true');
-          showToast(language === 'ar' ? 'تم تفعيل الإشعارات بنجاح ✅' : 'Notifications enabled successfully ✅');
+          localStorage.setItem('notifications_haraj', 'true');
+          showToast(language === 'ar' ? 'تم تفعيل إشعارات الحراج ✅' : 'Haraj notifications enabled ✅');
           console.log('✅ Haraj notifications enabled');
         } else {
           showToast(language === 'ar' ? 'حدث خطأ، حاول مرة أخرى' : 'Error, try again');
@@ -114,7 +115,6 @@ const HarajView: React.FC<HarajViewProps> = ({ onFullScreenToggle, currentLocati
         const authToken = localStorage.getItem('token');
         const fcmToken = getStoredToken();
         
-        // Unsubscribe from haraj topic (optional - send to backend)
         if (authToken && fcmToken) {
           try {
             await fetch(`${API_BASE_URL}/api/v1/fcm/unsubscribe`, {
@@ -133,10 +133,9 @@ const HarajView: React.FC<HarajViewProps> = ({ onFullScreenToggle, currentLocati
           }
         }
         
-        // Update local state
         setHarajNotificationsEnabled(false);
-        localStorage.setItem('harajNotificationsEnabled', 'false');
-        showToast(language === 'ar' ? 'تم إيقاف الإشعارات 🔕' : 'Notifications disabled 🔕');
+        localStorage.setItem('notifications_haraj', 'false');
+        showToast(language === 'ar' ? 'تم إيقاف إشعارات الحراج 🔕' : 'Haraj notifications disabled 🔕');
         console.log('🔕 Haraj notifications disabled');
       }
     } catch (error) {
@@ -230,7 +229,7 @@ const HarajView: React.FC<HarajViewProps> = ({ onFullScreenToggle, currentLocati
                   avatar: p.user?.avatar ? (p.user.avatar.startsWith('http') ? p.user.avatar : `${API_BASE_URL}${p.user.avatar}`) : null,
                 },
                 timeAgo: p.createdAt ? getRelativeTime(p.createdAt) : '',
-                content: p.text || p.content || '', // Fixed: Check both text and content fields
+                content: p.text || p.content || '',
                 image: p.media && p.media.length > 0 
                   ? (p.media[0].url.startsWith('http') 
                       ? p.media[0].url 
