@@ -23,6 +23,19 @@ interface JobsViewProps {
   onProfileClick?: (userId: string) => void;
 }
 
+// Helper function to create a safe topic name from category
+const createTopicName = (category: string, type: 'seeker' | 'employer'): string => {
+  // Convert Arabic category name to a safe topic name
+  const safeName = category.replace(/\s+/g, '_').replace(/[\/\\]/g, '_');
+  return `jobs_${safeName}_${type}`;
+};
+
+// Helper function to create localStorage key
+const createStorageKey = (category: string, type: 'seeker' | 'employer'): string => {
+  const safeName = category.replace(/\s+/g, '_').replace(/[\/\\]/g, '_');
+  return `notifications_jobs_${safeName}_${type}`;
+};
+
 const JobsView: React.FC<JobsViewProps> = ({ onFullScreenToggle, currentLocation, onLocationClick, onReport, onProfileClick }) => {
   const { t, language } = useLanguage();
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
@@ -31,15 +44,17 @@ const JobsView: React.FC<JobsViewProps> = ({ onFullScreenToggle, currentLocation
   const [loading, setLoading] = useState(false);
   
   // ============================================
-  // SEPARATE Notification States for Each Topic
+  // Notification States - Stored per category+type
   // ============================================
-  // Each topic has its own state and localStorage key
-  const [jobSeekerNotificationsEnabled, setJobSeekerNotificationsEnabled] = useState(() => 
-    localStorage.getItem('notifications_job_seeker') === 'true'
-  );
-  const [jobEmployerNotificationsEnabled, setJobEmployerNotificationsEnabled] = useState(() => 
-    localStorage.getItem('notifications_job_employer') === 'true'
-  );
+  // We use a Map to track notification state for each category+type combination
+  const [notificationStates, setNotificationStates] = useState<Record<string, boolean>>(() => {
+    const states: Record<string, boolean> = {};
+    JOB_CATEGORIES.forEach(cat => {
+      states[createStorageKey(cat.name, 'seeker')] = localStorage.getItem(createStorageKey(cat.name, 'seeker')) === 'true';
+      states[createStorageKey(cat.name, 'employer')] = localStorage.getItem(createStorageKey(cat.name, 'employer')) === 'true';
+    });
+    return states;
+  });
   
   const [toastMessage, setToastMessage] = useState<string | null>(null);
 
@@ -67,12 +82,11 @@ const JobsView: React.FC<JobsViewProps> = ({ onFullScreenToggle, currentLocation
   // ============================================
   // Generic Topic Subscription Handler
   // ============================================
-  const handleToggleTopicNotifications = async (
-    topicName: string, 
-    isEnabled: boolean, 
-    setEnabled: (val: boolean) => void,
-    storageKey: string
-  ) => {
+  const handleToggleCategoryNotifications = async (category: string, type: 'seeker' | 'employer') => {
+    const storageKey = createStorageKey(category, type);
+    const topicName = createTopicName(category, type);
+    const isEnabled = notificationStates[storageKey] || false;
+
     try {
       if (!isEnabled) {
         // Currently Disabled -> Enable notifications
@@ -103,7 +117,7 @@ const JobsView: React.FC<JobsViewProps> = ({ onFullScreenToggle, currentLocation
           return;
         }
         
-        // Subscribe to SPECIFIC topic only
+        // Subscribe to SPECIFIC category topic only
         const response = await fetch(`${API_BASE_URL}/api/v1/fcm/subscribe`, {
           method: 'POST',
           headers: {
@@ -112,14 +126,16 @@ const JobsView: React.FC<JobsViewProps> = ({ onFullScreenToggle, currentLocation
           },
           body: JSON.stringify({
             deviceToken: fcmToken,
-            topic: topicName  // e.g., 'job_seeker' or 'job_employer'
+            topic: topicName,
+            category: category,
+            subType: type
           })
         });
         
         if (response.ok) {
-          setEnabled(true);
+          setNotificationStates(prev => ({ ...prev, [storageKey]: true }));
           localStorage.setItem(storageKey, 'true');
-          showToast(language === 'ar' ? 'تم تفعيل الإشعارات بنجاح ✅' : 'Notifications enabled successfully ✅');
+          showToast(language === 'ar' ? `تم تفعيل إشعارات ${category} ✅` : `${category} notifications enabled ✅`);
           console.log(`✅ ${topicName} notifications enabled`);
         } else {
           showToast(language === 'ar' ? 'حدث خطأ، حاول مرة أخرى' : 'Error, try again');
@@ -147,35 +163,15 @@ const JobsView: React.FC<JobsViewProps> = ({ onFullScreenToggle, currentLocation
           }
         }
         
-        setEnabled(false);
+        setNotificationStates(prev => ({ ...prev, [storageKey]: false }));
         localStorage.setItem(storageKey, 'false');
-        showToast(language === 'ar' ? 'تم إيقاف الإشعارات 🔕' : 'Notifications disabled 🔕');
+        showToast(language === 'ar' ? `تم إيقاف إشعارات ${category} 🔕` : `${category} notifications disabled 🔕`);
         console.log(`🔕 ${topicName} notifications disabled`);
       }
     } catch (error) {
       console.error(`❌ Error toggling ${topicName} notifications:`, error);
       showToast(language === 'ar' ? 'حدث خطأ' : 'Error occurred');
     }
-  };
-
-  // Handler for Job Seeker notifications
-  const handleToggleJobSeekerNotifications = () => {
-    handleToggleTopicNotifications(
-      'job_seeker',
-      jobSeekerNotificationsEnabled,
-      setJobSeekerNotificationsEnabled,
-      'notifications_job_seeker'
-    );
-  };
-
-  // Handler for Job Employer notifications
-  const handleToggleJobEmployerNotifications = () => {
-    handleToggleTopicNotifications(
-      'job_employer',
-      jobEmployerNotificationsEnabled,
-      setJobEmployerNotificationsEnabled,
-      'notifications_job_employer'
-    );
   };
 
   const getLocationLabel = () => {
@@ -318,21 +314,15 @@ const JobsView: React.FC<JobsViewProps> = ({ onFullScreenToggle, currentLocation
     : null;
   const JobIcon = currentJobData ? currentJobData.icon : Briefcase;
 
-  // Get current notification state based on active sub-page type
+  // Get current notification state for active sub-page
   const getCurrentNotificationState = () => {
     if (!activeSubPage) return false;
-    return activeSubPage.type === 'seeker' ? jobSeekerNotificationsEnabled : jobEmployerNotificationsEnabled;
-  };
-
-  // Get current notification toggle handler based on active sub-page type
-  const getCurrentNotificationHandler = () => {
-    if (!activeSubPage) return () => {};
-    return activeSubPage.type === 'seeker' ? handleToggleJobSeekerNotifications : handleToggleJobEmployerNotifications;
+    const storageKey = createStorageKey(activeSubPage.category, activeSubPage.type);
+    return notificationStates[storageKey] || false;
   };
 
   if (activeSubPage) {
     const isNotificationEnabled = getCurrentNotificationState();
-    const handleNotificationToggle = getCurrentNotificationHandler();
 
     return (
       <div className="bg-[#f0f2f5] dark:bg-black min-h-screen">
@@ -370,13 +360,13 @@ const JobsView: React.FC<JobsViewProps> = ({ onFullScreenToggle, currentLocation
               </div>
 
               <div className="flex items-center gap-2">
-                {/* --- BELL ICON FOR CURRENT SUB-PAGE TYPE --- */}
+                {/* --- BELL ICON FOR THIS SPECIFIC CATEGORY + TYPE --- */}
                 <button 
-                  onClick={handleNotificationToggle}
+                  onClick={() => handleToggleCategoryNotifications(activeSubPage.category, activeSubPage.type)}
                   className={`p-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors ${isNotificationEnabled ? 'text-purple-600 dark:text-purple-400' : 'text-gray-400 dark:text-gray-500'}`}
                   title={isNotificationEnabled 
-                    ? (language === 'ar' ? 'إيقاف الإشعارات' : 'Disable notifications') 
-                    : (language === 'ar' ? 'تفعيل الإشعارات' : 'Enable notifications')}
+                    ? (language === 'ar' ? `إيقاف إشعارات ${activeSubPage.category}` : `Disable ${activeSubPage.category} notifications`) 
+                    : (language === 'ar' ? `تفعيل إشعارات ${activeSubPage.category}` : `Enable ${activeSubPage.category} notifications`)}
                 >
                   {isNotificationEnabled ? <Bell size={20} strokeWidth={2} /> : <BellOff size={20} strokeWidth={2} />}
                 </button>
@@ -459,62 +449,6 @@ const JobsView: React.FC<JobsViewProps> = ({ onFullScreenToggle, currentLocation
                 </span>
              </button>
            </div>
-        </div>
-
-        {/* ============================================ */}
-        {/* NOTIFICATION SETTINGS PANEL - Two Separate Options */}
-        {/* ============================================ */}
-        <div className="px-4 py-3 bg-gray-50 dark:bg-gray-900/50 border-t border-gray-100 dark:border-gray-800">
-          <p className="text-xs text-gray-500 dark:text-gray-400 mb-2 font-medium">
-            {language === 'ar' ? 'إشعارات الوظائف:' : 'Job Notifications:'}
-          </p>
-          <div className="flex gap-2">
-            {/* Job Seeker Notifications Button */}
-            <button 
-              onClick={handleToggleJobSeekerNotifications}
-              className={`flex-1 flex items-center justify-center gap-2 py-2 px-3 rounded-lg transition-all ${
-                jobSeekerNotificationsEnabled 
-                  ? 'bg-purple-100 dark:bg-purple-900/30 border-2 border-purple-500' 
-                  : 'bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700'
-              }`}
-            >
-              {jobSeekerNotificationsEnabled ? (
-                <Bell size={16} className="text-purple-600 dark:text-purple-400" />
-              ) : (
-                <BellOff size={16} className="text-gray-400" />
-              )}
-              <span className={`text-xs font-bold ${
-                jobSeekerNotificationsEnabled 
-                  ? 'text-purple-600 dark:text-purple-400' 
-                  : 'text-gray-600 dark:text-gray-400'
-              }`}>
-                {language === 'ar' ? 'أبحث عن وظيفة' : 'Job Seeker'}
-              </span>
-            </button>
-
-            {/* Job Employer Notifications Button */}
-            <button 
-              onClick={handleToggleJobEmployerNotifications}
-              className={`flex-1 flex items-center justify-center gap-2 py-2 px-3 rounded-lg transition-all ${
-                jobEmployerNotificationsEnabled 
-                  ? 'bg-blue-100 dark:bg-blue-900/30 border-2 border-blue-500' 
-                  : 'bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700'
-              }`}
-            >
-              {jobEmployerNotificationsEnabled ? (
-                <Bell size={16} className="text-blue-600 dark:text-blue-400" />
-              ) : (
-                <BellOff size={16} className="text-gray-400" />
-              )}
-              <span className={`text-xs font-bold ${
-                jobEmployerNotificationsEnabled 
-                  ? 'text-blue-600 dark:text-blue-400' 
-                  : 'text-gray-600 dark:text-gray-400'
-              }`}>
-                {language === 'ar' ? 'أبحث عن موظف' : 'Job Employer'}
-              </span>
-            </button>
-          </div>
         </div>
       </div>
 

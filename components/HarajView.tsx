@@ -22,6 +22,19 @@ interface HarajViewProps {
   onProfileClick?: (userId: string) => void;
 }
 
+// Helper function to create a safe topic name from category
+const createTopicName = (category: string): string => {
+  // Convert Arabic category name to a safe topic name
+  const safeName = category.replace(/\s+/g, '_').replace(/[\/\\]/g, '_');
+  return `haraj_${safeName}`;
+};
+
+// Helper function to create localStorage key
+const createStorageKey = (category: string): string => {
+  const safeName = category.replace(/\s+/g, '_').replace(/[\/\\]/g, '_');
+  return `notifications_haraj_${safeName}`;
+};
+
 const HarajView: React.FC<HarajViewProps> = ({ onFullScreenToggle, currentLocation, onLocationClick, onReport, onProfileClick }) => {
   const { t, language } = useLanguage();
   const [activeCategory, setActiveCategory] = useState<string | null>(null);
@@ -29,12 +42,17 @@ const HarajView: React.FC<HarajViewProps> = ({ onFullScreenToggle, currentLocati
   const [loading, setLoading] = useState(false);
   
   // ============================================
-  // INDEPENDENT Notification State for Haraj
+  // Notification States - Stored per category
   // ============================================
-  // Uses unique localStorage key 'notifications_haraj' to prevent conflicts
-  const [harajNotificationsEnabled, setHarajNotificationsEnabled] = useState(() => 
-    localStorage.getItem('notifications_haraj') === 'true'
-  );
+  // We use a Map to track notification state for each category
+  const [notificationStates, setNotificationStates] = useState<Record<string, boolean>>(() => {
+    const states: Record<string, boolean> = {};
+    HARAJ_CATEGORIES.forEach(cat => {
+      states[createStorageKey(cat.name)] = localStorage.getItem(createStorageKey(cat.name)) === 'true';
+    });
+    return states;
+  });
+  
   const [toastMessage, setToastMessage] = useState<string | null>(null);
 
   // Show toast helper
@@ -56,11 +74,15 @@ const HarajView: React.FC<HarajViewProps> = ({ onFullScreenToggle, currentLocati
   };
 
   // ============================================
-  // Haraj Topic Subscription Handler
+  // Category-Specific Topic Subscription Handler
   // ============================================
-  const handleToggleHarajNotifications = async () => {
+  const handleToggleCategoryNotifications = async (category: string) => {
+    const storageKey = createStorageKey(category);
+    const topicName = createTopicName(category);
+    const isEnabled = notificationStates[storageKey] || false;
+
     try {
-      if (!harajNotificationsEnabled) {
+      if (!isEnabled) {
         // Currently Disabled -> Enable notifications
         const permission = await requestPermissions();
         if (permission !== 'granted') {
@@ -89,7 +111,7 @@ const HarajView: React.FC<HarajViewProps> = ({ onFullScreenToggle, currentLocati
           return;
         }
         
-        // Subscribe to 'haraj' topic ONLY
+        // Subscribe to SPECIFIC category topic only
         const response = await fetch(`${API_BASE_URL}/api/v1/fcm/subscribe`, {
           method: 'POST',
           headers: {
@@ -98,15 +120,16 @@ const HarajView: React.FC<HarajViewProps> = ({ onFullScreenToggle, currentLocati
           },
           body: JSON.stringify({
             deviceToken: fcmToken,
-            topic: 'haraj'  // Only haraj topic
+            topic: topicName,
+            category: category
           })
         });
         
         if (response.ok) {
-          setHarajNotificationsEnabled(true);
-          localStorage.setItem('notifications_haraj', 'true');
-          showToast(language === 'ar' ? 'تم تفعيل إشعارات الحراج ✅' : 'Haraj notifications enabled ✅');
-          console.log('✅ Haraj notifications enabled');
+          setNotificationStates(prev => ({ ...prev, [storageKey]: true }));
+          localStorage.setItem(storageKey, 'true');
+          showToast(language === 'ar' ? `تم تفعيل إشعارات ${category} ✅` : `${category} notifications enabled ✅`);
+          console.log(`✅ ${topicName} notifications enabled`);
         } else {
           showToast(language === 'ar' ? 'حدث خطأ، حاول مرة أخرى' : 'Error, try again');
         }
@@ -125,7 +148,7 @@ const HarajView: React.FC<HarajViewProps> = ({ onFullScreenToggle, currentLocati
               },
               body: JSON.stringify({
                 deviceToken: fcmToken,
-                topic: 'haraj'
+                topic: topicName
               })
             });
           } catch (error) {
@@ -133,13 +156,13 @@ const HarajView: React.FC<HarajViewProps> = ({ onFullScreenToggle, currentLocati
           }
         }
         
-        setHarajNotificationsEnabled(false);
-        localStorage.setItem('notifications_haraj', 'false');
-        showToast(language === 'ar' ? 'تم إيقاف إشعارات الحراج 🔕' : 'Haraj notifications disabled 🔕');
-        console.log('🔕 Haraj notifications disabled');
+        setNotificationStates(prev => ({ ...prev, [storageKey]: false }));
+        localStorage.setItem(storageKey, 'false');
+        showToast(language === 'ar' ? `تم إيقاف إشعارات ${category} 🔕` : `${category} notifications disabled 🔕`);
+        console.log(`🔕 ${topicName} notifications disabled`);
       }
     } catch (error) {
-      console.error('❌ Error toggling haraj notifications:', error);
+      console.error(`❌ Error toggling ${topicName} notifications:`, error);
       showToast(language === 'ar' ? 'حدث خطأ' : 'Error occurred');
     }
   };
@@ -274,7 +297,16 @@ const HarajView: React.FC<HarajViewProps> = ({ onFullScreenToggle, currentLocati
   const currentCategoryData = HARAJ_CATEGORIES.find(c => c.name === activeCategory);
   const CategoryIcon = currentCategoryData ? currentCategoryData.icon : Store;
 
+  // Get current notification state for active category
+  const getCurrentNotificationState = () => {
+    if (!activeCategory) return false;
+    const storageKey = createStorageKey(activeCategory);
+    return notificationStates[storageKey] || false;
+  };
+
   if (activeCategory) {
+    const isNotificationEnabled = getCurrentNotificationState();
+
     return (
       <div className="bg-[#f0f2f5] dark:bg-black min-h-screen">
         {/* Toast Notification */}
@@ -306,13 +338,15 @@ const HarajView: React.FC<HarajViewProps> = ({ onFullScreenToggle, currentLocati
             </div>
 
             <div className="flex items-center gap-2">
-              {/* --- BELL ICON IN SUB-PAGE --- */}
+              {/* --- BELL ICON FOR THIS SPECIFIC CATEGORY --- */}
               <button 
-                onClick={handleToggleHarajNotifications}
-                className={`p-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors ${harajNotificationsEnabled ? 'text-orange-600 dark:text-orange-400' : 'text-gray-400 dark:text-gray-500'}`}
-                title={harajNotificationsEnabled ? (language === 'ar' ? 'إيقاف الإشعارات' : 'Disable notifications') : (language === 'ar' ? 'تفعيل الإشعارات' : 'Enable notifications')}
+                onClick={() => handleToggleCategoryNotifications(activeCategory)}
+                className={`p-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors ${isNotificationEnabled ? 'text-orange-600 dark:text-orange-400' : 'text-gray-400 dark:text-gray-500'}`}
+                title={isNotificationEnabled 
+                  ? (language === 'ar' ? `إيقاف إشعارات ${activeCategory}` : `Disable ${activeCategory} notifications`) 
+                  : (language === 'ar' ? `تفعيل إشعارات ${activeCategory}` : `Enable ${activeCategory} notifications`)}
               >
-                {harajNotificationsEnabled ? <Bell size={20} strokeWidth={2} /> : <BellOff size={20} strokeWidth={2} />}
+                {isNotificationEnabled ? <Bell size={20} strokeWidth={2} /> : <BellOff size={20} strokeWidth={2} />}
               </button>
 
               <button 
@@ -388,15 +422,6 @@ const HarajView: React.FC<HarajViewProps> = ({ onFullScreenToggle, currentLocati
            </div>
            
            <div className="flex items-center gap-2">
-             {/* --- BELL ICON IN MAIN HARAJ HEADER --- */}
-             <button 
-               onClick={handleToggleHarajNotifications}
-               className={`p-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors ${harajNotificationsEnabled ? 'text-orange-600 dark:text-orange-400' : 'text-gray-400 dark:text-gray-500'}`}
-               title={harajNotificationsEnabled ? (language === 'ar' ? 'إيقاف إشعارات الحراج' : 'Disable haraj notifications') : (language === 'ar' ? 'تفعيل إشعارات الحراج' : 'Enable haraj notifications')}
-             >
-               {harajNotificationsEnabled ? <Bell size={20} strokeWidth={2} /> : <BellOff size={20} strokeWidth={2} />}
-             </button>
-
              <button 
                 onClick={onLocationClick}
                 className="flex items-center gap-1.5 bg-white/80 dark:bg-gray-800 hover:bg-white dark:hover:bg-gray-700 py-1.5 px-3 rounded-full transition-colors border border-gray-100 dark:border-gray-700 shadow-sm"
