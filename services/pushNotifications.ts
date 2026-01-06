@@ -17,6 +17,33 @@ export const isNativePlatform = (): boolean => {
   return Capacitor.isNativePlatform();
 };
 
+/**
+ * CRITICAL FIX: Create Android Notification Channel
+ * This fixes the issue where notifications are received but not shown on Android.
+ * Must be called immediately when the app launches.
+ */
+export const createNotificationChannel = async (): Promise<void> => {
+  if (!isNativePlatform()) {
+    console.log('ℹ️ Not on native platform, skipping channel creation');
+    return;
+  }
+
+  try {
+    await PushNotifications.createChannel({
+      id: 'fcm_default_channel',
+      name: 'General',
+      importance: 5, // IMPORTANCE_HIGH - shows everywhere, makes noise and peeks
+      description: 'General notifications',
+      sound: 'default',
+      visibility: 1, // VISIBILITY_PUBLIC
+      vibration: true,
+    });
+    console.log('✅ Android notification channel created successfully');
+  } catch (error) {
+    console.error('❌ Error creating notification channel:', error);
+  }
+};
+
 // دالة للتحقق من صلاحيات الإشعارات
 export const checkPermissions = async (): Promise<'granted' | 'denied' | 'prompt'> => {
   if (!isNativePlatform()) {
@@ -74,6 +101,26 @@ export const registerForPushNotifications = async (): Promise<string | null> => 
   } catch (error) {
     console.error('❌ Error registering for push notifications:', error);
     return null;
+  }
+};
+
+/**
+ * Unregister from push notifications
+ * Called when user disables notifications via the bell icon
+ */
+export const unregisterFromPushNotifications = async (): Promise<void> => {
+  if (!isNativePlatform()) {
+    console.log('ℹ️ Not on native platform, skipping unregister');
+    return;
+  }
+
+  try {
+    await PushNotifications.unregister();
+    fcmToken = null;
+    localStorage.removeItem('fcmToken');
+    console.log('✅ Successfully unregistered from push notifications');
+  } catch (error) {
+    console.error('❌ Error unregistering from push notifications:', error);
   }
 };
 

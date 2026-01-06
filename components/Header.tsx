@@ -1,6 +1,6 @@
 
 import React from 'react';
-import { Settings, MapPin, Bell } from 'lucide-react';
+import { Settings, MapPin, Bell, BellOff } from 'lucide-react';
 import { useLanguage } from '../contexts/LanguageContext';
 import { getDisplayLocation } from '../data/locations';
 
@@ -11,6 +11,8 @@ interface HeaderProps {
   onSettingsClick: () => void;
   onDiscoveryClick: () => void;
   unreadCount?: number;
+  notificationsEnabled?: boolean;
+  onNotificationToggle?: () => void;
 }
 
 const Header: React.FC<HeaderProps> = ({ 
@@ -18,7 +20,9 @@ const Header: React.FC<HeaderProps> = ({
   onLocationClick, 
   onSettingsClick,
   onNotificationsClick,
-  unreadCount
+  unreadCount,
+  notificationsEnabled = true,
+  onNotificationToggle
 }) => {
   const { language } = useLanguage();
   
@@ -40,6 +44,17 @@ const Header: React.FC<HeaderProps> = ({
     return `${flagStr}${countryDisplay}`;
   };
 
+  // Handle bell icon click - toggle notifications or open notifications view
+  const handleBellClick = () => {
+    if (onNotificationToggle) {
+      // If toggle handler is provided, use it for toggling notifications
+      onNotificationToggle();
+    } else {
+      // Fallback to opening notifications view
+      onNotificationsClick();
+    }
+  };
+
   return (
     <div className="bg-white px-4 pt-3 pb-1 flex justify-between items-center">
       
@@ -57,11 +72,17 @@ const Header: React.FC<HeaderProps> = ({
       {/* Actions */}
       <div className="flex items-center gap-1">
         <button 
-          onClick={onNotificationsClick}
-          className="p-2 rounded-full hover:bg-gray-100 transition-colors text-gray-600 relative"
+          onClick={handleBellClick}
+          className={`p-2 rounded-full hover:bg-gray-100 transition-colors relative ${
+            notificationsEnabled ? 'text-gray-600' : 'text-gray-400'
+          }`}
         >
-          <Bell size={24} strokeWidth={2} />
-          {unreadCount !== undefined && unreadCount > 0 && (
+          {notificationsEnabled ? (
+            <Bell size={24} strokeWidth={2} />
+          ) : (
+            <BellOff size={24} strokeWidth={2} />
+          )}
+          {notificationsEnabled && unreadCount !== undefined && unreadCount > 0 && (
             <span className="absolute top-1 right-1 min-w-[18px] h-[18px] px-1 bg-red-500 rounded-full border-2 border-white flex items-center justify-center text-[10px] font-bold text-white">
                 {unreadCount > 99 ? '99+' : unreadCount}
             </span>
