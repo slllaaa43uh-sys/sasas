@@ -23,17 +23,44 @@ interface JobsViewProps {
   onProfileClick?: (userId: string) => void;
 }
 
-// Helper function to create a safe topic name from category
-const createTopicName = (category: string, type: 'seeker' | 'employer'): string => {
-  // Convert Arabic category name to a safe topic name
-  const safeName = category.replace(/\s+/g, '_').replace(/[\/\\]/g, '_');
-  return `jobs_${safeName}_${type}`;
+// ============================================
+// CATEGORY TO TOPIC MAPPING (Must match backend)
+// ============================================
+const CATEGORY_TO_TOPIC_MAP: Record<string, string> = {
+  'سائق خاص': 'jobs_driver',
+  'حارس أمن': 'jobs_security',
+  'طباخ': 'jobs_cook',
+  'محاسب': 'jobs_accountant',
+  'مهندس مدني': 'jobs_engineer',
+  'طبيب/ممرض': 'jobs_medical',
+  'نجار': 'jobs_carpenter',
+  'كاتب محتوى': 'jobs_writer',
+  'كهربائي': 'jobs_electrician',
+  'ميكانيكي': 'jobs_mechanic',
+  'بائع / كاشير': 'jobs_sales',
+  'مبرمج': 'jobs_programmer',
+  'مصمم جرافيك': 'jobs_designer',
+  'مترجم': 'jobs_translator',
+  'مدرس خصوصي': 'jobs_teacher',
+  'مدير مشاريع': 'jobs_manager',
+  'خدمة عملاء': 'jobs_support',
+  'مقدم طعام': 'jobs_waiter',
+  'توصيل': 'jobs_delivery',
+  'حلاق / خياط': 'jobs_barber',
+  'مزارع': 'jobs_farmer',
+  'وظائف أخرى': 'jobs_other',
+};
+
+// Helper function to get English topic name from Arabic category
+const getTopicName = (category: string, type: 'seeker' | 'employer'): string => {
+  const baseTopic = CATEGORY_TO_TOPIC_MAP[category] || 'jobs_other';
+  return `${baseTopic}_${type}`;
 };
 
 // Helper function to create localStorage key
 const createStorageKey = (category: string, type: 'seeker' | 'employer'): string => {
-  const safeName = category.replace(/\s+/g, '_').replace(/[\/\\]/g, '_');
-  return `notifications_jobs_${safeName}_${type}`;
+  const baseTopic = CATEGORY_TO_TOPIC_MAP[category] || 'jobs_other';
+  return `notifications_${baseTopic}_${type}`;
 };
 
 const JobsView: React.FC<JobsViewProps> = ({ onFullScreenToggle, currentLocation, onLocationClick, onReport, onProfileClick }) => {
@@ -46,7 +73,6 @@ const JobsView: React.FC<JobsViewProps> = ({ onFullScreenToggle, currentLocation
   // ============================================
   // Notification States - Stored per category+type
   // ============================================
-  // We use a Map to track notification state for each category+type combination
   const [notificationStates, setNotificationStates] = useState<Record<string, boolean>>(() => {
     const states: Record<string, boolean> = {};
     JOB_CATEGORIES.forEach(cat => {
@@ -84,7 +110,7 @@ const JobsView: React.FC<JobsViewProps> = ({ onFullScreenToggle, currentLocation
   // ============================================
   const handleToggleCategoryNotifications = async (category: string, type: 'seeker' | 'employer') => {
     const storageKey = createStorageKey(category, type);
-    const topicName = createTopicName(category, type);
+    const topicName = getTopicName(category, type);
     const isEnabled = notificationStates[storageKey] || false;
 
     try {

@@ -22,17 +22,43 @@ interface HarajViewProps {
   onProfileClick?: (userId: string) => void;
 }
 
-// Helper function to create a safe topic name from category
-const createTopicName = (category: string): string => {
-  // Convert Arabic category name to a safe topic name
-  const safeName = category.replace(/\s+/g, '_').replace(/[\/\\]/g, '_');
-  return `haraj_${safeName}`;
+// ============================================
+// CATEGORY TO TOPIC MAPPING (Must match backend)
+// ============================================
+const CATEGORY_TO_TOPIC_MAP: Record<string, string> = {
+  'سيارات': 'haraj_cars',
+  'عقارات': 'haraj_realestate',
+  'أجهزة منزلية': 'haraj_appliances',
+  'أثاث ومفروشات': 'haraj_furniture',
+  'جوالات': 'haraj_phones',
+  'لابتوبات وكمبيوتر': 'haraj_computers',
+  'كاميرات وتصوير': 'haraj_cameras',
+  'ألعاب فيديو': 'haraj_games',
+  'ملابس وموضة': 'haraj_fashion',
+  'ساعات ومجوهرات': 'haraj_jewelry',
+  'حيوانات أليفة': 'haraj_pets',
+  'طيور': 'haraj_birds',
+  'معدات ثقيلة': 'haraj_equipment',
+  'قطع غيار': 'haraj_parts',
+  'تحف ومقتنيات': 'haraj_antiques',
+  'كتب ومجلات': 'haraj_books',
+  'أدوات رياضية': 'haraj_sports',
+  'مستلزمات أطفال': 'haraj_kids',
+  'خيم وتخييم': 'haraj_camping',
+  'أرقام مميزة': 'haraj_numbers',
+  'نقل عفش': 'haraj_moving',
+  'أدوات أخرى': 'haraj_other',
+};
+
+// Helper function to get English topic name from Arabic category
+const getTopicName = (category: string): string => {
+  return CATEGORY_TO_TOPIC_MAP[category] || 'haraj_other';
 };
 
 // Helper function to create localStorage key
 const createStorageKey = (category: string): string => {
-  const safeName = category.replace(/\s+/g, '_').replace(/[\/\\]/g, '_');
-  return `notifications_haraj_${safeName}`;
+  const baseTopic = CATEGORY_TO_TOPIC_MAP[category] || 'haraj_other';
+  return `notifications_${baseTopic}`;
 };
 
 const HarajView: React.FC<HarajViewProps> = ({ onFullScreenToggle, currentLocation, onLocationClick, onReport, onProfileClick }) => {
@@ -44,7 +70,6 @@ const HarajView: React.FC<HarajViewProps> = ({ onFullScreenToggle, currentLocati
   // ============================================
   // Notification States - Stored per category
   // ============================================
-  // We use a Map to track notification state for each category
   const [notificationStates, setNotificationStates] = useState<Record<string, boolean>>(() => {
     const states: Record<string, boolean> = {};
     HARAJ_CATEGORIES.forEach(cat => {
@@ -78,7 +103,7 @@ const HarajView: React.FC<HarajViewProps> = ({ onFullScreenToggle, currentLocati
   // ============================================
   const handleToggleCategoryNotifications = async (category: string) => {
     const storageKey = createStorageKey(category);
-    const topicName = createTopicName(category);
+    const topicName = getTopicName(category);
     const isEnabled = notificationStates[storageKey] || false;
 
     try {
