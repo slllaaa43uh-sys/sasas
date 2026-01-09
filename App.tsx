@@ -152,6 +152,40 @@ const AppContent: React.FC = () => {
   }, [token]); // Only re-run if auth token changes
 
   // ============================================
+  // NOTIFICATION RECEIVED HANDLER - Filter own notifications
+  // ============================================
+  // Filter out notifications sent by the current user (creator)
+  useEffect(() => {
+    if (!Capacitor.isNativePlatform()) return;
+
+    const setupNotificationReceivedListener = async () => {
+      try {
+        await PushNotifications.addListener('pushNotificationReceived', (notification) => {
+          console.log('📩 Notification received:', notification);
+          
+          const data = notification.data;
+          const currentUserId = localStorage.getItem('userId');
+          const creatorId = data?.creatorId || data?.creator_id || data?.userId;
+          
+          // If this notification is from the current user, ignore it
+          if (currentUserId && creatorId && currentUserId === creatorId) {
+            console.log('⚠️ Ignoring own notification - creatorId matches currentUserId');
+            // Cancel the notification display (if possible)
+            return;
+          }
+          
+          console.log('✅ Notification is for this user, allowing display');
+        });
+        console.log('✅ Notification received listener added');
+      } catch (error) {
+        console.error('❌ Error setting up notification received listener:', error);
+      }
+    };
+
+    setupNotificationReceivedListener();
+  }, []);
+
+  // ============================================
   // NOTIFICATION CLICK HANDLER
   // ============================================
   // Handle when user clicks on a push notification

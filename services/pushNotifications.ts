@@ -40,7 +40,7 @@ export const createNotificationChannel = async (): Promise<void> => {
       name: 'General',
       importance: 5, // IMPORTANCE_HIGH
       description: 'General notifications',
-      sound: 'default',
+      sound: 'notify', // Custom sound file: res/raw/notify.mp3
       visibility: 1, // VISIBILITY_PUBLIC
       vibration: true,
     });
