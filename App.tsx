@@ -4,7 +4,7 @@ import {
   registerForPushNotifications,
   createNotificationChannel
 } from './services/pushNotifications';
-import { processNotificationForBadge } from './services/badgeCounterService';
+// Badge counter service - counts fetched automatically by components
 import { PushNotifications } from '@capacitor/push-notifications';
 import { Capacitor } from '@capacitor/core';
 import Header from './components/Header';
@@ -148,9 +148,6 @@ const AppContent: React.FC = () => {
       if (event.data && event.data.type === 'NOTIFICATION_CLICK') {
         const { postId, videoId, notificationType } = event.data.data;
         
-        // Process for badge counter
-        processNotificationForBadge({ type: notificationType, postId, videoId });
-        
         if (postId) {
           console.log('📱 Opening post from SW message:', postId);
           setSelectedNotification({ category: 'post', targetId: postId });
@@ -161,7 +158,8 @@ const AppContent: React.FC = () => {
       }
       // Handle badge update from background notification
       else if (event.data && event.data.type === 'NOTIFICATION_RECEIVED') {
-        processNotificationForBadge(event.data.data);
+        // Badge counts are fetched automatically by components
+        console.log('📬 Background notification received');
       }
     };
     
@@ -243,10 +241,7 @@ const AppContent: React.FC = () => {
             return;
           }
           
-          // Process notification for badge counter
-          if (data) {
-            processNotificationForBadge(data);
-          }
+          // Badge counts are fetched automatically by components
           
           console.log('✅ Notification is for this user, allowing display');
         });
