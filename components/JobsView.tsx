@@ -429,7 +429,7 @@ const JobsView: React.FC<JobsViewProps> = ({ onFullScreenToggle, currentLocation
                   </div>
                   <div>
                     <h2 className="font-bold text-lg text-gray-800 dark:text-white">
-                      {activeSubPage.type === 'seeker' ? t('jobs_employer') : t('jobs_seeker')}
+                      {activeSubPage.type === 'seeker' ? t('jobs_seeker') : t('jobs_employer')}
                     </h2>
                     <p className="text-[10px] text-gray-500">
                       {t(activeSubPage.category)}
@@ -573,41 +573,41 @@ const JobsView: React.FC<JobsViewProps> = ({ onFullScreenToggle, currentLocation
                    const catEmployerCount = selectedCatCounts?.employer || 0;
                    return (
                      <>
-                       <button 
-                         onClick={() => handleSubPageSelect('employer')}
-                         className="w-full flex items-center justify-between p-4 rounded-xl border border-gray-200 dark:border-gray-700 hover:border-purple-500 hover:bg-purple-50 dark:hover:bg-purple-900/20 transition-all group"
-                       >
-                          <div className="flex items-center gap-3">
-                             <div className="bg-purple-100 dark:bg-purple-900/30 p-2 rounded-full text-purple-600 dark:text-purple-400 group-hover:scale-110 transition-transform relative">
-                                <Users size={20} />
-                                {catSeekerCount > 0 && (
-                                  <div className="absolute -top-1 -right-1 min-w-[16px] h-[16px] bg-purple-600 rounded-full flex items-center justify-center px-1" style={{ fontSize: '9px', fontWeight: 'bold', color: 'white' }}>
-                                    {catSeekerCount > 99 ? '99+' : catSeekerCount}
-                                  </div>
-                                )}
-                             </div>
-                             <span className="font-bold text-gray-700 dark:text-gray-200">{t('jobs_seeker')}</span>
-                          </div>
-                          <ChevronLeft size={18} className={`text-gray-300 group-hover:text-purple-500 ${language === 'en' ? 'rotate-180' : ''}`} />
-                       </button>
+                      <button 
+                        onClick={() => handleSubPageSelect('seeker')}
+                        className="w-full flex items-center justify-between p-4 rounded-xl border border-gray-200 dark:border-gray-700 hover:border-purple-500 hover:bg-purple-50 dark:hover:bg-purple-900/20 transition-all group"
+                      >
+                         <div className="flex items-center gap-3">
+                            <div className="bg-purple-100 dark:bg-purple-900/30 p-2 rounded-full text-purple-600 dark:text-purple-400 group-hover:scale-110 transition-transform relative">
+                               <Users size={20} />
+                               {catSeekerCount > 0 && (
+                                 <div className="absolute -top-1 -right-1 min-w-[16px] h-[16px] bg-purple-600 rounded-full flex items-center justify-center px-1" style={{ fontSize: '9px', fontWeight: 'bold', color: 'white' }}>
+                                   {catSeekerCount > 99 ? '99+' : catSeekerCount}
+                                 </div>
+                               )}
+                            </div>
+                            <span className="font-bold text-gray-700 dark:text-gray-200">{t('jobs_seeker')}</span>
+                         </div>
+                         <ChevronLeft size={18} className={`text-gray-300 group-hover:text-purple-500 ${language === 'en' ? 'rotate-180' : ''}`} />
+                      </button>
 
-                       <button 
-                         onClick={() => handleSubPageSelect('seeker')}
-                         className="w-full flex items-center justify-between p-4 rounded-xl border border-gray-200 dark:border-gray-700 hover:border-blue-500 hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-all group"
-                       >
-                          <div className="flex items-center gap-3">
-                             <div className="bg-blue-100 dark:bg-blue-900/30 p-2 rounded-full text-blue-600 dark:text-blue-400 group-hover:scale-110 transition-transform relative">
-                                <Briefcase size={20} />
-                                {catEmployerCount > 0 && (
-                                  <div className="absolute -top-1 -right-1 min-w-[16px] h-[16px] bg-blue-600 rounded-full flex items-center justify-center px-1" style={{ fontSize: '9px', fontWeight: 'bold', color: 'white' }}>
-                                    {catEmployerCount > 99 ? '99+' : catEmployerCount}
-                                  </div>
-                                )}
-                             </div>
-                             <span className="font-bold text-gray-700 dark:text-gray-200">{t('jobs_employer')}</span>
-                          </div>
-                          <ChevronLeft size={18} className={`text-gray-300 group-hover:text-blue-500 ${language === 'en' ? 'rotate-180' : ''}`} />
-                       </button>
+                      <button 
+                        onClick={() => handleSubPageSelect('employer')}
+                        className="w-full flex items-center justify-between p-4 rounded-xl border border-gray-200 dark:border-gray-700 hover:border-blue-500 hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-all group"
+                      >
+                         <div className="flex items-center gap-3">
+                            <div className="bg-blue-100 dark:bg-blue-900/30 p-2 rounded-full text-blue-600 dark:text-blue-400 group-hover:scale-110 transition-transform relative">
+                               <Briefcase size={20} />
+                               {catEmployerCount > 0 && (
+                                 <div className="absolute -top-1 -right-1 min-w-[16px] h-[16px] bg-blue-600 rounded-full flex items-center justify-center px-1" style={{ fontSize: '9px', fontWeight: 'bold', color: 'white' }}>
+                                   {catEmployerCount > 99 ? '99+' : catEmployerCount}
+                                 </div>
+                               )}
+                            </div>
+                            <span className="font-bold text-gray-700 dark:text-gray-200">{t('jobs_employer')}</span>
+                         </div>
+                         <ChevronLeft size={18} className={`text-gray-300 group-hover:text-blue-500 ${language === 'en' ? 'rotate-180' : ''}`} />
+                      </button>
                      </>
                    );
                  })()}
